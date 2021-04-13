@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+
+<body>
+  <div id="app">
+    <input v-model="value" />
+    <p v-text="value"></p>
+  </div>
+  <!-- https://juejin.cn/post/6844903942254510087#heading-9 -->
+</body>
+<script>
+  // 观察者功能
+  // 发布者
+  function Subject() {
+    this.observers = [];
+    this.attach = function (callback) {
+      this.observers.push(callback);
+    };
+    this.notify = function (value) {
+      this.observers.forEach(callback => callback(value));
+    };
+  }
+  // 订阅者
+  function Observer(queue) {
+    this.queue = queue
+    this.add = function (key, callback) {
+      this.queue[key].attach(callback);
+    }
+  }
+
+  // ====
+
+  // 数据拦截器
+  // 监听数据更新 - 代理方式
+  function ProxyWatcher(data, queue) {
+    return new Proxy(data, {
+      get: (target, key) => target[key],
+      set(target, key, value) {
+        target[key] = value;
+
+        // 通知此值的所有订阅者，数据发生了更新
+        queue[key].notify(value);
+      }
+    });
+  }
+
+  // ====
+
+  // 模板解析
+  function Compile(el, vm) {
+
+    // 关联自定义特性
+    if (el.attributes) {
+      [].forEach.call(el.attributes, attribute => {
+        if (attribute.name.includes('v-')) {
+          Update[attribute.name](el, vm.data, attribute.value, vm);
+        }
+      });
+    }
+
+    // 递归解析所有DOM
+    [].forEach.call(el.childNodes, child => Compile(child, vm));
+
+    return el
+  }
+
+  // 自定义特性对应的事件
+  const Update = {
+    "v-text"(el, data, key, vm) {
+
+      // 初始化DOM内容
+      el.innerText = data[key];
+
+      // 创建一个数据的订阅，数据变化后更新展示内容
+      vm.observer.add(key, value => {
+        el.innerText = value;
+      });
+    },
+    "v-model"(input, data, key, vm) {
+
+      // 初始化Input默认值
+      input.value = data[key];
+
+      // 创建一个订阅
+      vm.observer.add(key, value => {
+        input.value = value;
+      });
+
+      // 监听控件的输入事件，并更新数据
+      input.addEventListener("keyup", e => {
+        data[key] = e.target.value;
+      });
+    }
+  };
+
+  // ====
+
+  // 封装
+  function Vue({
+    el,
+    data
+  }) {
+
+    // initProxy
+    this.messageQueue = {};
+    this.observer = new Observer(this.messageQueue)
+    this.data = ProxyWatcher(data, this.messageQueue);
+
+    // initState
+    for (let key in myData) {
+      this.messageQueue[key] = new Subject();
+    }
+
+    // initRender
+    // initEvents
+    this.el = Compile(el, this);
+  }
+
+  // ====
+
+  // 数据
+  const myData = {
+    value: "hello world."
+  };
+
+  // 实例
+  const vm = new Vue({
+    el: document.querySelector("#app"),
+    data: myData
+  });
+</script>
+
+</html>
