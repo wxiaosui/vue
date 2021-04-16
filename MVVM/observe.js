@@ -11,7 +11,7 @@ function Subject() {
     this.observers.push(callback);
   };
 
-  // 通过所有的订阅者
+  // 通知所有的订阅者
   this.notify = function (value) {
     this.observers.forEach(callback => callback(value));
   };
@@ -21,20 +21,9 @@ function Subject() {
  * 订阅者
  */
 function Observer(queue, key, callback) {
+  console.log('observer')
   queue[key].attach(callback);
 }
-
-// ====
-
-// 手动更新数据
-function setData(data, key, value) {
-  data[key] = value;
-
-  // 通知此值的所有订阅者，数据发生了更新
-  messageQueue[key].notify(value);
-}
-
-// ====
 
 // 消息队列
 const messageQueue = {};
@@ -53,6 +42,18 @@ for (let key in myData) {
 Observer(messageQueue, "value", value => {
   console.warn("value updated:", value);
 });
+
+// ====
+
+// 手动更新数据
+function setData(data, key, value) {
+  data[key] = value;
+
+  // 通知此值的所有订阅者，数据发生了更新
+  messageQueue[key].notify(value);
+}
+
+// ====
 
 // 更新数据
 setData(myData, "value", "hello world.");
